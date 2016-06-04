@@ -65,7 +65,7 @@ describe("remote", function () {
             errorFlag = 1;
         }).catch(function (data) {
             if (data.status === 408) {
-                return data.json().then(error => {
+                return data.text().then(error => {
                     errorFlag = 2;
                 })
             }

@@ -18,7 +18,7 @@
  * 	onComplete(response)
  * 	
  * })
- * 
+ *
  * exports.getUsers = remote.extend({
  * 	url : '/getUsers',
  * 	headers : {},
@@ -68,193 +68,175 @@ const assign = require('beyond-lib/lib/assign');
 const fetch = typeof window !== 'undefined' && window.fetch && !window.__disableNativeFetch ? window.fetch : require('fetch-ie8');
 
 function isfunc(func) {
-	return typeof func === 'function';
+    return typeof func === 'function';
 }
 
 function mergeUrl(basePath, url) {
-	if (!basePath || !url) {
-		return basePath + url;
-	} else if (/\/$/.test(basePath) && /^\//.test(url)) {
-		return basePath + url.slice(1);
-	} else if (!/\/$/.test(basePath) && !/^\//.test(url)) {
-		return basePath + '/' + url;
-	}
-	return basePath + url;
+    if (!basePath || !url) {
+        return basePath + url;
+    } else if (/\/$/.test(basePath) && /^\//.test(url)) {
+        return basePath + url.slice(1);
+    } else if (!/\/$/.test(basePath) && !/^\//.test(url)) {
+        return basePath + '/' + url;
+    }
+    return basePath + url;
 }
 
 function isObj(obj) {
-	return obj && Object.prototype.toString.call(obj) === '[object Object]';
+    return obj && Object.prototype.toString.call(obj) === '[object Object]';
 }
 
 function isFormData(obj) {
-	return obj && Object.prototype.toString.call(obj) === '[object FormData]';
+    return obj && Object.prototype.toString.call(obj) === '[object FormData]';
 }
 
 function serialize(obj) {
-	if (obj) {
-		let arr = [];
-		for (var k in obj) {
-			arr.push(encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]));
-		}
-		return arr.join('&');
-	}
-	return null;
+    if (obj) {
+        let arr = [];
+        for (var k in obj) {
+            arr.push(encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]));
+        }
+        return arr.join('&');
+    }
+    return null;
 }
 
-function fakeResponse(msg, init) {
-    let blobMsg = msg;
-    let type = 'application/json';
-    if(typeof msg === 'object'){
-        blobMsg = [JSON.stringify(msg)];
-    }
-    if(typeof msg === 'string'){
-        blobMsg = [msg];
-        type = 'text/html';
-    }
-    if(!isObj(init)){
-        init = {"status" : 500}
-    }
-    let body = new Blob(blobMsg, {type: type});
-    return new Response(body, init);
-}
 function Timeout(ms, msg) {
-	return new Promise((resolve, reject) => {
-			setTimeout(function () {
-                let response = fakeResponse(msg, { "status" : 408 , "statusText" : "timeout" });
-				reject(response);
-			}, ms);
-});
+    return new Promise((resolve, reject) => {
+        setTimeout(function () {
+            let response = new Response(msg, {"status": 408, "statusText": "timeout"});
+            reject(response);
+        }, ms);
+    });
 }
 
 
 function createFetch(url, options, timeout, remote) {
-	let func = function func() {
-		remote.trigger('start');
-		let result = new Promise((resolve, reject) =>{
-				Promise.race([fetch(url, options), Timeout(timeout.ms, timeout.msg)])
-				.then(function (response) {
-					let resCopy1 = response.clone();
-					let resCopy2 = response.clone();
-					let isSuccess = response.ok || response.status >= 200 && response.status < 300;
-					if (isSuccess) {
-						remote.trigger('success', resCopy1);
-					} else {
-						throw response;
-					}
-					remote.trigger('complete', resCopy2);
-					let data = response.headers.get('content-type') &&  response.headers.get('content-type').indexOf('json') >= 0 ? response.json() : response.text();
-					resolve(data);
-				})
-				.catch(function (error) {
-					let errorCopy1 = error.clone();
-					let errorCopy2 = error.clone();
-					remote.trigger('error', errorCopy1);
-					remote.trigger('complete', errorCopy2);
-					reject(error);
-				});
-		remote.trigger('send');
-	});
-		return result;
-	};
-	func.url = url;
-	func.options = options;
-	return func;
+    let func = function func() {
+        remote.trigger('start');
+        let result = new Promise((resolve, reject) => {
+            Promise.race([fetch(url, options), Timeout(timeout.ms, timeout.msg)])
+                .then(function (response) {
+                    let resCopy1 = response.clone();
+                    let resCopy2 = response.clone();
+                    let isSuccess = response.ok || response.status >= 200 && response.status < 300;
+                    if (isSuccess) {
+                        remote.trigger('success', resCopy1);
+                    } else {
+                        throw response;
+                    }
+                    remote.trigger('complete', resCopy2);
+                    let data = response.headers.get('content-type') && response.headers.get('content-type').indexOf('json') >= 0 ? response.json() : response.text();
+                    resolve(data);
+                })
+                .catch(function (error) {
+                    let errorCopy1 = error.clone();
+                    let errorCopy2 = error.clone();
+                    remote.trigger('error', errorCopy1);
+                    remote.trigger('complete', errorCopy2);
+                    reject(error);
+                });
+            remote.trigger('send');
+        });
+        return result;
+    };
+    func.url = url;
+    func.options = options;
+    return func;
 }
 
 function Remote() {
-	this._base = {
-		basePath: '',
-		method: 'GET',
-		requestJSON: true,
-		responseJSON: true,
-		timeout: 10,
-		timeoutMsg: {
-			title: '服务器超时！请重试！'
-		},
-		credentials: 'omit'
-	};
-	this._handlers = {};
+    this._base = {
+        basePath: '',
+        method: 'GET',
+        requestJSON: true,
+        responseJSON: true,
+        timeout: 10,
+        timeoutMsg: '服务器超时！请重试！',
+        credentials: 'omit'
+    };
+    this._handlers = {};
 }
 
 Remote.prototype.on = function (type, handler) {
-	this._handlers[type] = this._handlers[type] || [];
-	this._handlers[type].push(handler);
+    this._handlers[type] = this._handlers[type] || [];
+    this._handlers[type].push(handler);
 };
 
 Remote.prototype.off = function (type, handler) {
-	let i = undefined;
-	if (this._handlers[type] && (i = this._handlers[type].indexOf(handler)) >= 0) {
-		this._handlers[type].splice(i, 1);
-	}
+    let i = undefined;
+    if (this._handlers[type] && (i = this._handlers[type].indexOf(handler)) >= 0) {
+        this._handlers[type].splice(i, 1);
+    }
 };
 
 Remote.prototype.trigger = function (type, arg) {
-	if (this._handlers[type]) {
-		this._handlers[type].forEach(function (handler) {
-			if (isfunc(handler)) {
-				handler(arg);
-			}
-		});
-	}
+    if (this._handlers[type]) {
+        this._handlers[type].forEach(function (handler) {
+            if (isfunc(handler)) {
+                handler(arg);
+            }
+        });
+    }
 };
 
 Remote.prototype.extend = function () {
-	let options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    let options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
 
-	let ops = {
-		headers: assign({}, this._base.headers),
-		method: this._base.method,
-		credentials: this._base.credentials
-	};
-	let metas = assign({}, this._base, options);
-	let url = typeof url === 'string' || url == null ? mergeUrl(metas.basePath, metas.url || '') : metas.url;
-	for (let k in options) {
-		//这四个参数从 metas 获取
-		if (['url', 'basePath', 'requestJSON', 'responseJSON'].indexOf(k) < 0) {
-			if (k === 'headers') {
-				assign(ops.headers, options[k]);
-			} else {
-				ops[k] = options[k];
-			}
-		}
-	}
-	ops.method = ops.method.toUpperCase();
-	//'Content-Type': 'application/json'
-	if (metas.requestJSON && !ops.headers['Content-Type']) {
-		ops.headers['Content-Type'] = 'application/json';
-	}
-	if (metas.responseJSON && !ops.headers['Accept']) {
-		ops.headers['Accept'] = 'application/json';
-	}
+    let ops = {
+        headers: assign({}, this._base.headers),
+        method: this._base.method,
+        credentials: this._base.credentials
+    };
+    let metas = assign({}, this._base, options);
+    let url = typeof url === 'string' || url == null ? mergeUrl(metas.basePath, metas.url || '') : metas.url;
+    for (let k in options) {
+        //这四个参数从 metas 获取
+        if (['url', 'basePath', 'requestJSON', 'responseJSON'].indexOf(k) < 0) {
+            if (k === 'headers') {
+                assign(ops.headers, options[k]);
+            } else {
+                ops[k] = options[k];
+            }
+        }
+    }
+    ops.method = ops.method.toUpperCase();
+    //'Content-Type': 'application/json'
+    if (metas.requestJSON && !ops.headers['Content-Type']) {
+        ops.headers['Content-Type'] = 'application/json';
+    }
+    if (metas.responseJSON && !ops.headers['Accept']) {
+        ops.headers['Accept'] = 'application/json';
+    }
 
-	if (ops.headers['Content-Type'] && ops.headers['Content-Type'].indexOf('application/json') >= 0 && isObj(ops.body)) {
-		ops.body = JSON.stringify(ops.body);
-	}
-	if (ops.method === 'POST' && !ops.headers['Content-Type'] && !isFormData(ops.body)) {
-		ops.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-		if (isObj(ops.body)) {
-			ops.body = serialize(ops.body);
-		}
-	}
+    if (ops.headers['Content-Type'] && ops.headers['Content-Type'].indexOf('application/json') >= 0 && isObj(ops.body)) {
+        ops.body = JSON.stringify(ops.body);
+    }
+    if (ops.method === 'POST' && !ops.headers['Content-Type'] && !isFormData(ops.body)) {
+        ops.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        if (isObj(ops.body)) {
+            ops.body = serialize(ops.body);
+        }
+    }
 
-	let timeout = {
-		ms:options.timeout || this._base.timeout,
-		msg: options.timeoutMsg || this._base.timeoutMsg
-	};
-	return createFetch(url, ops, timeout, this);
+    let timeout = {
+        ms: options.timeout || this._base.timeout,
+        msg: options.timeoutMsg || this._base.timeoutMsg
+    };
+    return createFetch(url, ops, timeout, this);
 };
 
 Remote.prototype.base = function (options) {
-	if (options == null) {
-		return assign({}, this._base);
-	} else {
-		assign(this._base, options);
-	}
+    if (options == null) {
+        return assign({}, this._base);
+    } else {
+        assign(this._base, options);
+    }
 };
 
 module.exports = {
-	remote: new Remote(),
-	create: function create() {
-		return new Remote();
-	}
+    remote: new Remote(),
+    create: function create() {
+        return new Remote();
+    }
 };
