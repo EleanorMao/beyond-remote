@@ -1,4 +1,5 @@
 require("../styles/style.less")
+require("fetch-ie8/fetch.js")
 
 var remote = require('src/index.js').remote
 remote.base({
@@ -6,12 +7,21 @@ remote.base({
 })
 
 var cb = remote.extend({
-	url : '/api/todos',
-	method : 'POST',
-	body : {a:1}
+	// url : '/api/todos',
+	url: 'https://api.github.com/users',
+	method : 'GET'
+	// body : {a:1}
 	
 })
-cb().then()
+cb().then(res =>{
+	alert(123)
+	console.log('success')
+}).catch(error =>{
+	alert('c')
+	return error.text().then(res =>{
+		alert(res)
+	})
+})
 
 if (process.env.NODE_ENV !== 'production') {
 	console.log('this is dev mode')
